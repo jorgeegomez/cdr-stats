@@ -238,9 +238,8 @@ func_install_pip_deps(){
     echo "Install Pip Dependencies"
     echo "========================"
 
-	#pip now only installs stable versions by default, so we need to use --pre option
-	pip install --pre pytz
-    esac
+    #pip now only installs stable versions by default, so we need to use --pre option
+    pip install --pre pytz
 
     echo "Install basic requirements..."
     for line in $(cat /usr/src/cdr-stats/requirements/basic.txt | grep -v '^#' | grep -v '^$')
