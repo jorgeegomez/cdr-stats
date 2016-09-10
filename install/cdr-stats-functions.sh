@@ -45,23 +45,8 @@ export LANG="en_US.UTF-8"
 
 # Identify Linux Distribution
 func_identify_os() {
-    if [ -f /etc/debian_version ] ; then
-        DIST='DEBIAN'
-        if [ "$(lsb_release -cs)" != "wheezy" ] && [ "$(lsb_release -cs)" != "jessie" ]; then
-            echo $SCRIPT_NOTICE
-            exit 255
-        fi
-        DEBIANCODE=$(lsb_release -cs)
-    elif [ -f /etc/redhat-release ] ; then
-        DIST='CENTOS'
-        if [ "$(awk '{print $3}' /etc/redhat-release)" != "6.2" ] && [ "$(awk '{print $3}' /etc/redhat-release)" != "6.3" ] && [ "$(awk '{print $3}' /etc/redhat-release)" != "6.4" ] && [ "$(awk '{print $3}' /etc/redhat-release)" != "6.5" ]; then
-            echo $SCRIPT_NOTICE
-            exit 255
-        fi
-    else
-        echo $SCRIPT_NOTICE
-        exit 1
-    fi
+	#DIST='DEBIAN'
+	#DEBIANCODE=$(lsb_release -cs)
 }
 
 #Function accept license
@@ -87,18 +72,10 @@ func_install_landing_page() {
     echo ""
     echo "Add Nginx configuration for Welcome page..."
     cp -rf /usr/src/cdr-stats/install/nginx/global /etc/nginx/
-    case $DIST in
-        'DEBIAN')
-            cp /usr/src/cdr-stats/install/nginx/sites-available/cdr_stats.conf /etc/nginx/sites-available/
-            ln -s /etc/nginx/sites-available/cdr_stats.conf /etc/nginx/sites-enabled/cdr_stats.conf
-            #Remove default NGINX landing page
-            rm /etc/nginx/sites-enabled/default
-        ;;
-        'CENTOS')
-            cp /usr/src/cdr-stats/install/nginx/sites-available/cdr_stats.conf /etc/nginx/conf.d/
-            rm /etc/nginx/conf.d/default.conf
-        ;;
-    esac
+	cp /usr/src/cdr-stats/install/nginx/sites-available/cdr_stats.conf /etc/nginx/sites-available/
+	ln -s /etc/nginx/sites-available/cdr_stats.conf /etc/nginx/sites-enabled/cdr_stats.conf
+	#Remove default NGINX landing page
+	rm /etc/nginx/sites-enabled/default
 
     cp -rf /usr/src/cdr-stats/install/nginx/global /etc/nginx/
 
@@ -155,84 +132,50 @@ func_install_dependencies(){
     #python setup tools
     echo "Install Dependencies and python modules..."
 
-    case $DIST in
-        'DEBIAN')
-            chk=`grep "backports" /etc/apt/sources.list|wc -l`
-            if [ $chk -lt 1 ] ; then
-                echo "Setup new sources.list entries"
-                #Used by Node.js
-                echo "deb http://ftp.us.debian.org/debian $DEBIANCODE-backports main" >> /etc/apt/sources.list
-                #Used by PostgreSQL
-                echo "deb http://apt.postgresql.org/pub/repos/apt/ $DEBIANCODE-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
-                wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-            fi
-            apt-get update
-            apt-get -y install lsb-release
-            apt-get -y install locales-all
+	chk=`grep "backports" /etc/apt/sources.list|wc -l`
+	if [ $chk -lt 1 ] ; then
+		echo "Setup new sources.list entries"
+		#Used by Node.js
+		#echo "deb http://ftp.us.debian.org/debian $DEBIANCODE-backports main" >> /etc/apt/sources.list
+		#Used by PostgreSQL
+		#echo "deb http://apt.postgresql.org/pub/repos/apt/ $DEBIANCODE-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+		#wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+	fi
+	apt-get update
+	apt-get -y install lsb-release
+	apt-get -y install locales-all
 
-            export LANGUAGE=en_US.UTF-8
-            export LANG=en_US.UTF-8
-            export LC_ALL=en_US.UTF-8
-            locale-gen en_US.UTF-8
+	export LANGUAGE=en_US.UTF-8
+	export LANG=en_US.UTF-8
+	export LC_ALL=en_US.UTF-8
+	locale-gen en_US.UTF-8
 
-            # dpkg-reconfigure locales
-            # apt-get -y install --reinstall language-pack-en
+	# dpkg-reconfigure locales
+	# apt-get -y install --reinstall language-pack-en
 
-            apt-get -y remove apache2.2-common apache2
-            apt-get -y install sudo curl
-            apt-get -y install hdparm htop vim
-            update-alternatives --set editor /usr/bin/vim.tiny
+	apt-get -y remove apache2
+	apt-get -y install sudo curl
+	apt-get -y install hdparm htop vim
+	# update-alternatives --set editor /usr/bin/vim.tiny
 
-            #Install Postgresql
-            apt-get -y install libpq-dev
-            apt-get -y install postgresql-9.4 postgresql-contrib-9.4
-            pg_createcluster 9.4 main --start
-            /etc/init.d/postgresql start
+	#Install Postgresql
+	apt-get -y install libpq-dev
+	apt-get -y install postgresql-9.5 postgresql-contrib-9.5
+	pg_createcluster 9.5 main --start
+	/etc/init.d/postgresql start
 
-            apt-get -y install python-software-properties
-            apt-get -y install python-pandas
-            apt-get -y install python-setuptools python-dev build-essential
-            apt-get -y install nginx supervisor
-            apt-get -y install git-core mercurial gawk cmake
-            apt-get -y install python-pip
-            #Install Node.js & NPM
-            apt-get -y install nodejs-legacy
-            curl -sL https://deb.nodesource.com/setup | bash -
-            apt-get install -y nodejs
-            #Memcached
-            apt-get -y install memcached
-        ;;
-        'CENTOS')
-            yum -y groupinstall "Development Tools"
-            yum -y install git sudo cmake
-            yum -y install python-setuptools python-tools python-devel mercurial memcached
-            yum -y install mlocate vim git wget
-            yum -y install policycoreutils-python
-
-            # install Node & npm
-            yum -y --enablerepo=epel install npm
-
-            #Install, configure and start nginx
-            yum -y install --enablerepo=epel nginx
-            chkconfig --levels 235 nginx on
-            service nginx start
-
-            #Install & Start PostgreSQL 9.1
-            #CentOs
-            rpm -ivh http://yum.pgrpms.org/9.1/redhat/rhel-6-x86_64/pgdg-centos91-9.1-4.noarch.rpm
-            #Redhad
-            #rpm -ivh http://yum.pgrpms.org/9.1/redhat/rhel-6-x86_64/pgdg-redhat91-9.1-5.noarch.rpm
-            yum -y install postgresql91-server postgresql91-devel
-            chkconfig --levels 235 postgresql-9.1 on
-            service postgresql-9.1 initdb
-            ln -s /usr/pgsql-9.1/bin/pg_config /usr/bin
-            ln -s /var/lib/pgsql/9.1/data /var/lib/pgsql
-            ln -s /var/lib/pgsql/9.1/backups /var/lib/pgsql
-            sed -i "s/ident/md5/g" /var/lib/pgsql/data/pg_hba.conf
-            sed -i "s/ident/md5/g" /var/lib/pgsql/9.1/data/pg_hba.conf
-            service postgresql-9.1 restart
-        ;;
-    esac
+	apt-get -y install python-software-properties
+	apt-get -y install python-pandas
+	apt-get -y install python-setuptools python-dev build-essential
+	apt-get -y install nginx supervisor
+	apt-get -y install git-core mercurial gawk cmake
+	apt-get -y install python-pip
+	#Install Node.js & NPM
+	apt-get -y install nodejs-legacy
+	curl -sL https://deb.nodesource.com/setup | bash -
+	apt-get install -y nodejs
+	#Memcached
+	apt-get -y install memcached
     if which paxctl >/dev/null; then
             echo "Deactivating memory protection on nodejs and python ( prevent segfault )"
             paxctl -cm /usr/bin/nodejs
@@ -295,14 +238,8 @@ func_install_pip_deps(){
     echo "Install Pip Dependencies"
     echo "========================"
 
-    case $DIST in
-        'DEBIAN')
-            #pip now only installs stable versions by default, so we need to use --pre option
-            pip install --pre pytz
-        ;;
-        'CENTOS')
-            pip install pytz
-        ;;
+	#pip now only installs stable versions by default, so we need to use --pre option
+	pip install --pre pytz
     esac
 
     echo "Install basic requirements..."
@@ -337,14 +274,7 @@ func_setup_virtualenv() {
     pip install virtualenvwrapper
 
     #Prepare settings for installation
-    case $DIST in
-        'DEBIAN')
-            SCRIPT_VIRTUALENVWRAPPER="/usr/local/bin/virtualenvwrapper.sh"
-        ;;
-        'CENTOS')
-            SCRIPT_VIRTUALENVWRAPPER="/usr/bin/virtualenvwrapper.sh"
-        ;;
-    esac
+	SCRIPT_VIRTUALENVWRAPPER="/usr/local/bin/virtualenvwrapper.sh"
 
     # Enable virtualenvwrapper
     chk=`grep "virtualenvwrapper" ~/.bashrc|wc -l`
@@ -445,44 +375,14 @@ func_prepare_settings(){
     sed -i "s/CDRPUSHER_DBNAME/$CDRPUSHER_DBNAME/"  $CONFIG_DIR/settings_local.py
 
     #Setup Timezone
-    case $DIST in
-        'DEBIAN')
-            #Get TZ
-            ZONE=$(head -1 /etc/timezone)
-        ;;
-        'CENTOS')
-            #Get TZ
-            . /etc/sysconfig/clock
-            echo ""
-            echo "We will now add port $HTTP_PORT  and port 80 to your Firewall"
-            echo "Press Enter to continue or CTRL-C to exit"
-            read TEMP
-        ;;
-    esac
+	#Get TZ
+	ZONE=$(head -1 /etc/timezone)
 
     #Set Timezone in settings_local.py
     sed -i "s@Europe/Madrid@$ZONE@g" $CONFIG_DIR/settings_local.py
 
-    #Fix Iptables
-    case $DIST in
-        'CENTOS')
-            #Add http port
-            iptables -I INPUT 2 -p tcp -m state --state NEW -m tcp --dport $HTTP_PORT -j ACCEPT
-            iptables -I INPUT 3 -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
-
-            service iptables save
-
-            #Selinux to allow apache to access this directory
-            chcon -Rv --type=httpd_sys_content_t /usr/share/virtualenvs/cdr-stats/
-            chcon -Rv --type=httpd_sys_content_t $INSTALL_DIR/usermedia
-            semanage port -a -t http_port_t -p tcp $HTTP_PORT
-            #Allowing Apache to access Redis port
-            semanage port -a -t http_port_t -p tcp 6379
-        ;;
-    esac
-
     IFCONFIG=`which ifconfig 2>/dev/null||echo /sbin/ifconfig`
-    IPADDR=`$IFCONFIG eth0|gawk '/inet addr/{print $2}'|gawk -F: '{print $2}'`
+    IPADDR=`LC_ALL=C $IFCONFIG -a|grep -v 127.0.0.1|gawk '/inet addr/{print $2}'|gawk -F: '{print $2}'`
     if [ -z "$IPADDR" ]; then
         #the following work on Docker container
         # ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/'
@@ -571,25 +471,9 @@ func_nginx_supervisor(){
     source /opt/miniconda/bin/deactivate
 
     #Configure and Start supervisor
-    case $DIST in
-        'DEBIAN')
-            cp /usr/src/cdr-stats/install/supervisor/gunicorn_cdrstats.conf /etc/supervisor/conf.d/
-            # cp /usr/src/cdr-stats/install/supervisor/debian/supervisord /etc/init.d/supervisor
-            # chmod +x /etc/init.d/supervisor
-        ;;
-        'CENTOS')
-            #Install Supervisor
-            pip install supervisor
-
-            cp /usr/src/cdr-stats/install/supervisor/centos/supervisord /etc/init.d/supervisor
-            chmod +x /etc/init.d/supervisor
-            chkconfig --levels 235 supervisor on
-            cp /usr/src/cdr-stats/install/supervisor/centos/supervisord.conf /etc/supervisord.conf
-            mkdir -p /etc/supervisor/conf.d
-            cp /usr/src/cdr-stats/install/supervisor/gunicorn_cdr_stats.conf /etc/supervisor/conf.d/
-            mkdir /var/log/supervisor/
-        ;;
-    esac
+	cp /usr/src/cdr-stats/install/supervisor/gunicorn_cdrstats.conf /etc/supervisor/conf.d/
+	# cp /usr/src/cdr-stats/install/supervisor/debian/supervisord /etc/init.d/supervisor
+	# chmod +x /etc/init.d/supervisor
     /etc/init.d/supervisor stop
     sleep 2
     /etc/init.d/supervisor start
@@ -601,25 +485,9 @@ func_celery_supervisor(){
     source /opt/miniconda/bin/deactivate
 
     #Configure and Start supervisor
-    case $DIST in
-        'DEBIAN')
-            cp /usr/src/cdr-stats/install/supervisor/celery_cdrstats.conf /etc/supervisor/conf.d/
-            # cp /usr/src/cdr-stats/install/supervisor/debian/supervisord /etc/init.d/supervisor
-            # chmod +x /etc/init.d/supervisor
-        ;;
-        'CENTOS')
-            #Install Supervisor
-            pip install supervisor
-
-            cp /usr/src/cdr-stats/install/supervisor/centos/supervisord /etc/init.d/supervisor
-            chmod +x /etc/init.d/supervisor
-            chkconfig --levels 235 supervisor on
-            cp /usr/src/cdr-stats/install/supervisor/centos/supervisord.conf /etc/supervisord.conf
-            mkdir -p /etc/supervisor/conf.d
-            cp /usr/src/cdr-stats/install/supervisor/celery_cdrstats.conf /etc/supervisor/conf.d/
-            mkdir /var/log/supervisor/
-        ;;
-    esac
+	cp /usr/src/cdr-stats/install/supervisor/celery_cdrstats.conf /etc/supervisor/conf.d/
+	# cp /usr/src/cdr-stats/install/supervisor/debian/supervisord /etc/init.d/supervisor
+	# chmod +x /etc/init.d/supervisor
     /etc/init.d/supervisor stop
     sleep 2
     /etc/init.d/supervisor start
@@ -711,44 +579,31 @@ func_install_backend() {
     echo "Install Celery via supervisor..."
     func_celery_supervisor
 
-    case $DIST in
-        'DEBIAN')
-            #Check permissions on /dev/shm to ensure that celery can start and run for openVZ.
-            DIR="/dev/shm"
-            echo "Checking the permissions for $dir"
-            stat $DIR
-            if [ `stat -c "%a" $DIR` -ge 777 ] ; then
-                echo "$DIR has Read Write permissions."
-            else
-                echo "$DIR has no read write permissions."
-                chmod -R 777 /dev/shm
-                if [ `grep -i /dev/shm /etc/fstab | wc -l` -eq 0 ]; then
-                    echo "Adding fstab entry to set permissions /dev/shm"
-                    echo "none /dev/shm tmpfs rw,nosuid,nodev,noexec 0 0" >> /etc/fstab
-                fi
-            fi
-        ;;
-    esac
+	#Check permissions on /dev/shm to ensure that celery can start and run for openVZ.
+	DIR="/dev/shm"
+	echo "Checking the permissions for $dir"
+	stat $DIR
+	if [ `stat -c "%a" $DIR` -ge 777 ] ; then
+		echo "$DIR has Read Write permissions."
+	else
+		echo "$DIR has no read write permissions."
+		chmod -R 777 /dev/shm
+		if [ `grep -i /dev/shm /etc/fstab | wc -l` -eq 0 ]; then
+			echo "Adding fstab entry to set permissions /dev/shm"
+			echo "none /dev/shm tmpfs rw,nosuid,nodev,noexec 0 0" >> /etc/fstab
+		fi
+	fi
 }
 
 
 #Install Redis
 func_install_redis() {
     echo "Install Redis-server ..."
-    case $DIST in
-        'DEBIAN')
-            echo "deb http://packages.dotdeb.org $DEBIANCODE all" > /etc/apt/sources.list.d/dotdeb.list
-            echo "deb-src http://packages.dotdeb.org $DEBIANCODE all" >> /etc/apt/sources.list.d/dotdeb.list
-            wget --no-check-certificate --quiet -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
-            apt-get update
-            apt-get -y install redis-server
-            /etc/init.d/redis-server restart
-        ;;
-        'CENTOS')
-            yum -y --enablerepo=epel install redis
-            chkconfig --add redis
-            chkconfig --level 2345 redis on
-            /etc/init.d/redis start
-        ;;
-    esac
+	#echo "deb http://packages.dotdeb.org $DEBIANCODE all" > /etc/apt/sources.list.d/dotdeb.list
+	#echo "deb-src http://packages.dotdeb.org $DEBIANCODE all" >> /etc/apt/sources.list.d/dotdeb.list
+	##wget --no-check-certificate --quiet -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
+	apt-get update
+	apt-get -y install redis-server
+	/etc/init.d/redis-server restart
 }
+
