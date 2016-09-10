@@ -172,7 +172,7 @@ func_install_dependencies(){
 	apt-get -y install python-pip
 	#Install Node.js & NPM
 	apt-get -y install nodejs-legacy
-	curl -sL https://deb.nodesource.com/setup | bash -
+	# curl -sL https://deb.nodesource.com/setup | bash -
 	apt-get install -y nodejs
 	#Memcached
 	apt-get -y install memcached
