@@ -45,8 +45,8 @@ export LANG="en_US.UTF-8"
 
 # Identify Linux Distribution
 func_identify_os() {
-	#DIST='DEBIAN'
-	#DEBIANCODE=$(lsb_release -cs)
+    DIST='DEBIAN'
+    DEBIANCODE=$(lsb_release -cs)
 }
 
 #Function accept license
